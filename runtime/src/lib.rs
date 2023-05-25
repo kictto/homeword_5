@@ -272,7 +272,7 @@ impl pallet_sudo::Config for Runtime {
 
 /// Configure the pallet-template in pallets/template.
 impl pallet_template::Config for Runtime {
-    type MaxClaimKeyLength = ConstU32<128>;
+    type MaxClaimLength = ConstU32<128>;
     type RuntimeEvent = RuntimeEvent;
 }
 

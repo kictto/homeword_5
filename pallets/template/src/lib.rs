@@ -18,7 +18,7 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         /// 定义存证的最大数据长度
         #[pallet::constant]
-        type MaxClaimKeyLength: Get<u32>;
+        type MaxClaimLength: Get<u32>;
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
     }
@@ -29,17 +29,17 @@ pub mod pallet {
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// 存证创建成功
-        ClaimCreated { who: T::AccountId, claim: Vec<u8> },
+        ClaimCreated { who: T::AccountId, claim: Vec<u16> },
         /// 存证被所有者撤销
-        ClaimRevoked { who: T::AccountId, claim: Vec<u8> },
+        ClaimRevoked { who: T::AccountId, claim: Vec<u16> },
         /// 存证被所有者转移
-        ClaimTransferred { who: T::AccountId, claim: Vec<u8>, to: T::AccountId },
+        ClaimTransferred { who: T::AccountId, claim: Vec<u16>, to: T::AccountId },
     }
 
     #[pallet::error]
     pub enum Error<T> {
         /// 存证已经存在
-        AlreadyClaimed,
+        ClaimAlreadyExisted,
         /// 存在不存在
         NoSuchClaim,
         /// 非存证所有者
@@ -56,7 +56,7 @@ pub mod pallet {
     pub(super) type Claims<T: Config> = StorageMap<
         _,
         Blake2_128Concat,
-        BoundedVec<u8, T::MaxClaimKeyLength>, // key类型
+        BoundedVec<u16, T::MaxClaimLength>, // key类型
         (T::AccountId, T::BlockNumber) // value类型
     >;
 
@@ -68,16 +68,16 @@ pub mod pallet {
         /// 创建存证
         #[pallet::weight(0)]
         #[pallet::call_index(1)]
-        pub fn create_claim(origin: OriginFor<T>, claim: Vec<u8>) -> DispatchResult {
+        pub fn create_claim(origin: OriginFor<T>, claim: Vec<u16>) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             // This function will return an error if the extrinsic is not signed.
             let sender = ensure_signed(origin)?;
             // 构建存证key
-            let claim_key = BoundedVec::<u8, T::MaxClaimKeyLength>::try_from(claim.clone())
+            let claim_key = BoundedVec::<u16, T::MaxClaimLength>::try_from(claim.clone())
                 .map_err(|_| Error::<T>::FailToCreateClaim)?;
 
             // 验证存证是否存在
-            ensure!(!Claims::<T>::contains_key(&claim_key), Error::<T>::AlreadyClaimed);
+            ensure!(!Claims::<T>::contains_key(&claim_key), Error::<T>::ClaimAlreadyExisted);
 
             // Get the block number from the FRAME System pallet.
             let current_block = <frame_system::Pallet<T>>::block_number();
@@ -93,13 +93,13 @@ pub mod pallet {
         /// 撤销存证
         #[pallet::weight(0)]
         #[pallet::call_index(2)]
-        pub fn revoke_claim(origin: OriginFor<T>, claim: Vec<u8>) -> DispatchResult {
+        pub fn revoke_claim(origin: OriginFor<T>, claim: Vec<u16>) -> DispatchResult {
             // Check that the extrinsic was signed and get the signer.
             // This function will return an error if the extrinsic is not signed.
             let sender = ensure_signed(origin)?;
 
             // 构建存证key
-            let claim_key = BoundedVec::<u8, T::MaxClaimKeyLength>::try_from(claim.clone())
+            let claim_key = BoundedVec::<u16, T::MaxClaimLength>::try_from(claim.clone())
                 .map_err(|_| Error::<T>::FailToCreateClaim)?;
 
             // Get owner of the claim, if none return an error.
@@ -118,11 +118,11 @@ pub mod pallet {
         /// 转移存证
         #[pallet::weight(0)]
         #[pallet::call_index(3)]
-        pub fn transfer_claim(origin: OriginFor<T>, claim: Vec<u8>, receiver: T::AccountId) -> DispatchResult {
+        pub fn transfer_claim(origin: OriginFor<T>, claim: Vec<u16>, receiver: T::AccountId) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
             // 构建存证key
-            let claim_key = BoundedVec::<u8, T::MaxClaimKeyLength>::try_from(claim.clone())
+            let claim_key = BoundedVec::<u16, T::MaxClaimLength>::try_from(claim.clone())
                 .map_err(|_| Error::<T>::FailToCreateClaim)?;
 
             // Get owner of the claim, if none return an error.
